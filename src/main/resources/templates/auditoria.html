@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Auditoria do Sistema</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-journal-text me-2 text-primary"></i>Registros de Auditoria
+        </h2>
+    </div>
+
+    <!-- Tabela de Auditoria -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-4">Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Perfil</th>
+                        <th>Operação</th>
+                        <th>Entidade</th>
+                        <th>ID Afetado</th>
+                        <th>Campo</th>
+                        <th>Valor Anterior</th>
+                        <th>Novo Valor</th>
+                        <th>Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${#lists.isEmpty(auditorias)}">
+                        <td colspan="10" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum registro de auditoria encontrado.
+                        </td>
+                    </tr>
+                    <tr th:each="audit : ${auditorias}">
+                        <td class="ps-4 small text-muted" th:text="${audit.dataHora != null ? #temporals.format(audit.dataHora, 'dd/MM/yyyy HH:mm:ss') : '-'}"></td>
+                        <td>
+                            <strong th:text="${audit.usuario}"></strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary" th:text="${audit.perfil}"></span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${audit.operacao == 'CANCELAMENTO'} ? 'bg-danger' :
+                                                  (${audit.operacao == 'APLICAR DESCONTO'} ? 'bg-warning text-dark' :
+                                                  (${audit.operacao == 'MUDANÇA DE STATUS'} ? 'bg-info text-dark' : 'bg-primary'))"
+                                  th:text="${audit.operacao}">
+                            </span>
+                        </td>
+                        <td th:text="${audit.entidade}"></td>
+                        <td class="small text-muted" th:text="${audit.entidadeId}"></td>
+                        <td class="small" th:text="${audit.campoAlterado != null ? audit.campoAlterado : '-'}"></td>
+                        <td class="small text-muted" th:text="${audit.valorAnterior != null ? audit.valorAnterior : '-'}"></td>
+                        <td class="small fw-medium" th:text="${audit.novoValor != null ? audit.novoValor : '-'}"></td>
+                        <td class="small text-danger fst-italic" th:text="${audit.justificativa != null ? audit.justificativa : '-'}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small" th:if="${!#lists.isEmpty(auditorias)}">
+            Total de eventos auditados: <strong th:text="${#lists.size(auditorias)}"></strong>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

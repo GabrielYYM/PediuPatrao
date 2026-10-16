@@ -32,8 +32,12 @@ build/
 ### VS Code ###
 .vscode/
 
-### Enviroment ###
+### Environment & Secrets ###
 .env
+.env.*
+*.env
+*-credentials.env
+atlas*.env
 
 ### Logs ###
 logs/

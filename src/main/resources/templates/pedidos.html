@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Lista de Pedidos</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-bag me-2 text-primary"></i>Pedidos
+        </h2>
+        <div>
+            <button th:if="${#authorization.expression('hasAnyRole(''GERENTE'', ''ATENDENTE'')')}"
+                    type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoPedido"
+                    id="btnNovoPedido" title="Registrar Entrada de Novo Pedido">
+                <i class="bi bi-plus-circle me-1"></i> Novo Pedido (Entrada)
+            </button>
+            <button th:unless="${#authorization.expression('hasAnyRole(''GERENTE'', ''ATENDENTE'')')}"
+                    type="button" class="btn btn-secondary" disabled
+                    title="Apenas Gerentes e Atendentes podem registrar pedidos">
+                <i class="bi bi-plus-circle me-1"></i> Novo Pedido (Entrada)
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensagens de feedback -->
+    <div class="alert alert-success alert-dismissible fade show" th:if="${sucesso}" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div class="alert alert-danger alert-dismissible fade show" th:if="${erro}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-4">ID</th>
+                            <th>Cliente</th>
+                            <th>Itens</th>
+                            <th>Total</th>
+                            <th>Desconto</th>
+                            <th>Entrada</th>
+                            <th>Saída</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Lista vazia -->
+                        <tr th:if="${#lists.isEmpty(pedidos)}">
+                            <td colspan="9" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                Nenhum pedido encontrado. Clique em "Novo Pedido (Entrada)" para cadastrar.
+                            </td>
+                        </tr>
+                        <!-- Linhas -->
+                        <tr th:each="pedido : ${pedidos}">
+                            <td class="ps-4 text-muted small" th:text="${pedido.id}"></td>
+                            <td>
+                                <span class="fw-semibold" th:text="${pedido.clienteId}"></span>
+                            </td>
+                            <td>
+                                <div th:if="${pedido.itens != null and !#lists.isEmpty(pedido.itens)}">
+                                    <span class="d-block small" th:each="item : ${pedido.itens}">
+                                        <strong th:text="${item.quantidade + 'x'}"></strong>
+                                        <span th:text="${item.nome}"></span>
+                                    </span>
+                                </div>
+                                <span class="text-muted small" th:if="${pedido.itens == null or #lists.isEmpty(pedido.itens)}">Sem itens</span>
+                            </td>
+                            <td>
+                                <strong th:text="${pedido.valorTotal != null ? 'R$ ' + #numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA') : 'R$ 0,00'}"></strong>
+                            </td>
+                            <td>
+                                <span th:if="${pedido.desconto != null and pedido.desconto > 0}" class="text-success fw-medium"
+                                      th:text="${'- R$ ' + #numbers.formatDecimal(pedido.desconto, 1, 'POINT', 2, 'COMMA')}">
+                                </span>
+                                <span th:if="${pedido.desconto == null or pedido.desconto == 0}" class="text-muted small">-</span>
+                            </td>
+                            <td>
+                                <span class="small d-block fw-semibold" th:text="${pedido.dataHoraEntrada != null ? #temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm') : '-'}"></span>
+                                <span class="small text-muted" th:if="${pedido.responsavelRegistro != null}" th:text="${'Por: ' + pedido.responsavelRegistro}"></span>
+                            </td>
+                            <td>
+                                <div th:if="${pedido.dataHoraSaida != null}">
+                                    <span class="small d-block fw-semibold text-success" th:text="${#temporals.format(pedido.dataHoraSaida, 'dd/MM/yyyy HH:mm')}"></span>
+                                    <span class="small text-muted" th:text="${pedido.responsavelSaida != null ? 'Por: ' + pedido.responsavelSaida : ''}"></span>
+                                </div>
+                                <span th:if="${pedido.dataHoraSaida == null}" class="small text-muted">-</span>
+                            </td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${pedido.status != null and pedido.status.name() == 'FINALIZADO'} ? 'bg-success' :
+                                                      (${pedido.status != null and pedido.status.name() == 'CANCELADO'} ? 'bg-danger' :
+                                                      (${pedido.status != null and pedido.status.name() == 'EM_PREPARACAO'} ? 'bg-warning text-dark' :
+                                                      (${pedido.status != null and pedido.status.name() == 'PRONTO'} ? 'bg-primary' :
+                                                      (${pedido.status != null and pedido.status.name() == 'RETIRADO'} ? 'bg-info text-dark' : 'bg-secondary'))))"
+                                      th:text="${pedido.status}">
+                                </span>
+                                <div th:if="${pedido.status != null and pedido.status.name() == 'CANCELADO' and pedido.justificativaCancelamento != null}"
+                                     class="small text-danger mt-1" style="max-width: 170px;">
+                                    <span class="d-block text-truncate" th:title="${'Motivo: ' + pedido.justificativaCancelamento}">
+                                        <i class="bi bi-info-circle me-1"></i><span th:text="${pedido.justificativaCancelamento}"></span>
+                                    </span>
+                                    <span class="d-block text-muted" style="font-size: 0.75rem;"
+                                          th:if="${pedido.responsavelCancelamento != null}"
+                                          th:text="${'Por: ' + pedido.responsavelCancelamento}">
+                                    </span>
+                                </div>
+                            </td>
+                            <!-- Ações -->
+                            <td class="text-end pe-4 text-nowrap">
+                                <!-- Botão de Desconto (apenas GERENTE) -->
+                                <button th:if="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                        type="button" class="btn btn-sm btn-outline-warning me-1"
+                                        th:disabled="${pedido.status != null and (pedido.status.name() == 'CANCELADO' or pedido.status.name() == 'RETIRADO' or pedido.status.name() == 'FINALIZADO')}"
+                                        th:onclick="'abrirModalDesconto(\'' + ${pedido.id} + '\', ' + ${pedido.valorTotal != null ? pedido.valorTotal : 0} + ')'"
+                                        title="Aplicar Desconto (Gerente)">
+                                    <i class="bi bi-percent"></i> Desconto
+                                </button>
+                                <button th:unless="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                        type="button" class="btn btn-sm btn-outline-secondary me-1" disabled
+                                        title="Apenas Gerentes podem aplicar desconto">
+                                    <i class="bi bi-percent"></i> Desconto
+                                </button>
+
+                                <!-- Botão de Cancelar (apenas GERENTE) -->
+                                <button th:if="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                        type="button" class="btn btn-sm btn-outline-danger me-1"
+                                        th:disabled="${pedido.status != null and (pedido.status.name() == 'CANCELADO' or pedido.status.name() == 'RETIRADO' or pedido.status.name() == 'FINALIZADO')}"
+                                        th:onclick="'abrirModalCancelar(\'' + ${pedido.id} + '\')'"
+                                        title="Cancelar Pedido (Gerente)">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </button>
+                                <button th:unless="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                        type="button" class="btn btn-sm btn-outline-secondary me-1" disabled
+                                        title="Apenas Gerentes podem cancelar pedidos">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </button>
+
+                                <!-- Botão de Avançar Status (GERENTE e ATENDENTE) -->
+                                <button th:if="${#authorization.expression('hasAnyRole(''GERENTE'', ''ATENDENTE'')')}"
+                                        type="button" class="btn btn-sm"
+                                        th:classappend="${pedido.status != null and pedido.status.name() == 'PRONTO'} ? 'btn-success' : 'btn-outline-primary'"
+                                        th:disabled="${pedido.status != null and (pedido.status.name() == 'CANCELADO' or pedido.status.name() == 'FINALIZADO')}"
+                                        th:onclick="'avancarStatus(\'' + ${pedido.id} + '\', \'' + ${pedido.status} + '\')'"
+                                        th:title="${pedido.status != null and pedido.status.name() == 'PRONTO'} ? 'Registrar Saída (Mover para RETIRADO)' : 'Avançar para próximo status'">
+                                    <i th:class="${pedido.status != null and pedido.status.name() == 'PRONTO'} ? 'bi bi-box-arrow-up-right' : 'bi bi-arrow-right-circle'"></i>
+                                    <span th:text="${pedido.status != null and pedido.status.name() == 'PRONTO'} ? 'Registrar Saída' : 'Avançar'"></span>
+                                </button>
+                                <button th:unless="${#authorization.expression('hasAnyRole(''GERENTE'', ''ATENDENTE'')')}"
+                                        type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                        title="Sem permissão para alterar status">
+                                    <i class="bi bi-arrow-right-circle"></i> Avançar
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer text-muted small" th:if="${!#lists.isEmpty(pedidos)}">
+            Total: <strong th:text="${#lists.size(pedidos)}"></strong> pedido(s)
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalNovoPedido" tabindex="-1" aria-labelledby="modalNovoPedidoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalNovoPedidoLabel">
+                        <i class="bi bi-plus-circle me-2"></i>Entrada de Pedido (Novo Pedido)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="novoClienteSelect" class="form-label fw-bold">Cliente <span class="text-danger">*</span></label>
+                        <select id="novoClienteSelect" class="form-select" required>
+                            <option value="">-- Selecione o Cliente --</option>
+                            <option th:each="c : ${clientes}" th:value="${c.id}" th:text="${c.nome + ' (Tel: ' + c.telefone + ')'}"></option>
+                        </select>
+                        <div class="form-text" th:if="${#lists.isEmpty(clientes)}">
+                            <span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Nenhum cliente cadastrado. Cadastre um cliente antes na tela de Clientes.</span>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3 border-secondary-subtle">
+                        <div class="card-header bg-light fw-bold">
+                            <i class="bi bi-basket me-1"></i> Adicionar Produtos
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-7">
+                                    <label for="itemProdutoSelect" class="form-label small">Produto</label>
+                                    <select id="itemProdutoSelect" class="form-select">
+                                        <option value="">-- Selecione o Produto --</option>
+                                        <option th:each="p : ${produtos}"
+                                                th:value="${p.id}"
+                                                th:data-nome="${p.nome}"
+                                                th:data-preco="${p.preco}"
+                                                th:text="${p.nome + ' - R$ ' + #numbers.formatDecimal(p.preco, 1, 'POINT', 2, 'COMMA')}">
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="itemQuantidade" class="form-label small">Quantidade</label>
+                                    <input type="number" id="itemQuantidade" class="form-control" min="1" value="1">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-success w-100" onclick="adicionarItemAoPedido()">
+                                        <i class="bi bi-plus-lg"></i> Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-center" style="width: 80px;">Qtd</th>
+                                    <th class="text-end" style="width: 120px;">Preço Un.</th>
+                                    <th class="text-end" style="width: 120px;">Subtotal</th>
+                                    <th class="text-center" style="width: 60px;">Remover</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaItensPedidoBody">
+                                <tr id="linhaNenhumItem">
+                                    <td colspan="5" class="text-center text-muted py-3">Nenhum item adicionado ainda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row justify-content-end">
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Subtotal:</span>
+                                <strong id="resumoSubtotal">R$ 0,00</strong>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <label for="novoDesconto" class="form-label mb-0 small fw-bold">Desconto (R$):</label>
+                                    <div style="width: 130px;">
+                                        <input th:if="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                               type="number" id="novoDesconto" class="form-control form-control-sm text-end"
+                                               min="0" step="0.5" value="0.00" oninput="recalcularTotais()">
+                                        <input th:unless="${#authorization.expression('hasRole(''GERENTE'')')}"
+                                               type="number" id="novoDesconto" class="form-control form-control-sm text-end"
+                                               value="0.00" readonly disabled
+                                               title="Apenas Gerentes têm permissão para conceder desconto">
+                                    </div>
+                                </div>
+                                <div class="form-text text-end small" th:if="${#authorization.expression('hasRole(''GERENTE'')')}">
+                                    Permitido para perfil Gerente
+                                </div>
+                                <div class="form-text text-end small text-muted" th:unless="${#authorization.expression('hasRole(''GERENTE'')')}">
+                                    <i class="bi bi-lock-fill"></i> Desconto exclusivo para Gerente
+                                </div>
+                            </div>
+
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between fs-5 fw-bold text-primary">
+                                <span>Total Final:</span>
+                                <span id="resumoTotalFinal">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="btnSalvarPedido" onclick="salvarNovoPedido()">
+                        <i class="bi bi-check-lg me-1"></i> Confirmar Entrada de Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aplicar Desconto (Exclusivo GERENTE) -->
+    <div class="modal fade" id="modalDesconto" tabindex="-1" aria-labelledby="modalDescontoLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="modalDescontoLabel">
+                        <i class="bi bi-percent me-2"></i>Aplicar Desconto (Gerente)
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="descontoPedidoId">
+                    <input type="hidden" id="descontoValorBase">
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Pedido Selecionado</label>
+                        <div class="fw-bold fs-6" id="descontoPedidoIdExibicao">-</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Valor Atual do Pedido</label>
+                        <div class="fw-bold fs-5 text-dark" id="descontoValorAtualExibicao">R$ 0,00</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descontoPercentualInput" class="form-label fw-bold">
+                            Percentual de Desconto (%):
+                        </label>
+                        <div class="input-group">
+                            <input type="number" id="descontoPercentualInput" class="form-control"
+                                   min="0.1" max="20" step="0.5" value="10" oninput="atualizarCalculoDesconto()">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> Regra de negócio: Desconto máximo permitido de <strong>20%</strong>.
+                        </div>
+                    </div>
+
+                    <div class="card bg-light border p-3">
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Valor do Desconto:</span>
+                            <span class="fw-bold text-success" id="descontoCalculadoExibicao">R$ 0,00</span>
+                        </div>
+                        <div class="d-flex justify-content-between fs-6 fw-bold">
+                            <span>Novo Total Estimado:</span>
+                            <span class="text-primary" id="descontoNovoTotalExibicao">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="btnConfirmarDesconto" onclick="confirmarDesconto()">
+                        <i class="bi bi-check-circle me-1"></i> Confirmar Desconto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalCancelarPedido" tabindex="-1" aria-labelledby="modalCancelarPedidoLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="modalCancelarPedidoLabel">
+                        <i class="bi bi-x-circle me-2"></i>Cancelar Pedido (Gerente)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="cancelarPedidoId">
+
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        Esta ação é <strong>irreversível</strong> e será auditada pelo sistema.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Pedido a ser Cancelado</label>
+                        <div class="fw-bold fs-6" id="cancelarPedidoIdExibicao">-</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cancelarJustificativaInput" class="form-label fw-bold">
+                            Justificativa do Cancelamento <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="cancelarJustificativaInput" class="form-control" rows="3"
+                                  placeholder="Explique o motivo do cancelamento do pedido..." required></textarea>
+                        <div class="form-text text-muted">
+                            A justificativa é obrigatória e ficará registrada na Auditoria.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Voltar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarCancelamento" onclick="confirmarCancelamento()">
+                        <i class="bi bi-x-lg me-1"></i> Confirmar Cancelamento
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let itensDoPedido = [];
+
+        function adicionarItemAoPedido() {
+            const selectProd = document.getElementById('itemProdutoSelect');
+            const produtoId = selectProd.value;
+            if (!produtoId) {
+                alert('Selecione um produto.');
+                return;
+            }
+
+            const nome = selectProd.options[selectProd.selectedIndex].getAttribute('data-nome');
+            const preco = parseFloat(selectProd.options[selectProd.selectedIndex].getAttribute('data-preco')) || 0;
+            const qtdInput = document.getElementById('itemQuantidade');
+            const quantidade = parseInt(qtdInput.value, 10);
+
+            if (isNaN(quantidade) || quantidade <= 0) {
+                alert('Informe uma quantidade válida maior que zero.');
+                return;
+            }
+
+            const indexExistente = itensDoPedido.findIndex(i => i.produtoId === produtoId);
+            if (indexExistente >= 0) {
+                itensDoPedido[indexExistente].quantidade += quantidade;
+            } else {
+                itensDoPedido.push({
+                    produtoId: produtoId,
+                    nome: nome,
+                    preco: preco,
+                    quantidade: quantidade
+                });
+            }
+
+            selectProd.value = '';
+            qtdInput.value = 1;
+
+            atualizarTabelaItens();
+        }
+
+        function removerItemDoPedido(index) {
+            itensDoPedido.splice(index, 1);
+            atualizarTabelaItens();
+        }
+
+        function formatarMoeda(val) {
+            return 'R$ ' + val.toFixed(2).replace('.', ',');
+        }
+
+        function atualizarTabelaItens() {
+            const tbody = document.getElementById('tabelaItensPedidoBody');
+            tbody.innerHTML = '';
+
+            if (itensDoPedido.length === 0) {
+                tbody.innerHTML = '<tr id="linhaNenhumItem"><td colspan="5" class="text-center text-muted py-3">Nenhum item adicionado ainda.</td></tr>';
+            } else {
+                itensDoPedido.forEach((item, index) => {
+                    const subtotalItem = item.preco * item.quantidade;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${item.nome}</td>
+                        <td class="text-center">${item.quantidade}</td>
+                        <td class="text-end">${formatarMoeda(item.preco)}</td>
+                        <td class="text-end">${formatarMoeda(subtotalItem)}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removerItemDoPedido(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            recalcularTotais();
+        }
+
+        function recalcularTotais() {
+            const subtotal = itensDoPedido.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+            const inputDesc = document.getElementById('novoDesconto');
+            let desconto = parseFloat(inputDesc.value) || 0;
+            if (desconto < 0) {
+                desconto = 0;
+                inputDesc.value = '0.00';
+            }
+
+            const totalFinal = Math.max(0, subtotal - desconto);
+
+            document.getElementById('resumoSubtotal').innerText = formatarMoeda(subtotal);
+            document.getElementById('resumoTotalFinal').innerText = formatarMoeda(totalFinal);
+        }
+
+        async function salvarNovoPedido() {
+            const clienteSelect = document.getElementById('novoClienteSelect');
+            const clienteId = clienteSelect.value;
+
+            if (!clienteId) {
+                alert('Selecione um cliente para o pedido.');
+                return;
+            }
+
+            if (itensDoPedido.length === 0) {
+                alert('Adicione pelo menos um item ao pedido.');
+                return;
+            }
+
+            const inputDesc = document.getElementById('novoDesconto');
+            let desconto = parseFloat(inputDesc.value) || 0;
+            if (desconto < 0) desconto = 0;
+
+            const payload = {
+                clienteId: clienteId,
+                itens: itensDoPedido.map(item => ({
+                    produtoId: item.produtoId,
+                    quantidade: item.quantidade
+                })),
+                desconto: desconto
+            };
+
+            const btnSalvar = document.getElementById('btnSalvarPedido');
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+
+            try {
+                const res = await fetch('/api/pedidos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert('Entrada de pedido registrada com sucesso!');
+                    window.location.reload();
+                } else {
+                    const err = await res.text();
+                    let msg = err;
+                    try { const j = JSON.parse(err); if (j.message) msg = j.message; } catch (_) {}
+                    alert('Erro ao registrar pedido: ' + (msg || 'Operação não autorizada.'));
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirmar Entrada de Pedido';
+                }
+            } catch (e) {
+                alert('Falha na requisição: ' + e.message);
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirmar Entrada de Pedido';
+            }
+        }
+
+        async function avancarStatus(id, statusAtual) {
+            let proximo = null;
+            let mensagem = '';
+
+            if (statusAtual === 'RECEBIDO') {
+                proximo = 'EM_PREPARACAO';
+                mensagem = 'Iniciar preparação do pedido (Transição para EM_PREPARACAO)?';
+            } else if (statusAtual === 'EM_PREPARACAO') {
+                proximo = 'PRONTO';
+                mensagem = 'Marcar pedido como pronto (Transição para PRONTO)?';
+            } else if (statusAtual === 'PRONTO') {
+                proximo = 'RETIRADO';
+                mensagem = 'REGISTRAR SAÍDA / RETIRADA DO PEDIDO?\n\nEsta ação registrará a data/hora e o seu usuário como responsáveis pela SAÍDA.';
+            } else if (statusAtual === 'RETIRADO') {
+                proximo = 'FINALIZADO';
+                mensagem = 'Finalizar o pedido definitivamente (Transição para FINALIZADO)?';
+            } else {
+                alert('Este pedido já está no status final (' + statusAtual + ').');
+                return;
+            }
+
+            if (!confirm(mensagem)) return;
+
+            try {
+                const res = await fetch(`/api/pedidos/${id}/status?status=${proximo}`, {
+                    method: 'PUT'
+                });
+                if (res.ok) {
+                    if (proximo === 'RETIRADO') {
+                        alert('Saída do pedido registrada com sucesso!');
+                    } else {
+                        alert(`Status atualizado para ${proximo}!`);
+                    }
+                    window.location.reload();
+                } else {
+                    const err = await res.text();
+                    let msg = err;
+                    try { const j = JSON.parse(err); if (j.message) msg = j.message; } catch (_) {}
+                    alert('Erro ao atualizar status: ' + (msg || 'Operação não autorizada.'));
+                }
+            } catch (e) {
+                alert('Falha na requisição: ' + e.message);
+            }
+        }
+
+        function abrirModalDesconto(id, valorTotal) {
+            document.getElementById('descontoPedidoId').value = id;
+            document.getElementById('descontoPedidoIdExibicao').innerText = id;
+            document.getElementById('descontoValorBase').value = valorTotal;
+            document.getElementById('descontoValorAtualExibicao').innerText = formatarMoeda(valorTotal);
+            document.getElementById('descontoPercentualInput').value = '10';
+
+            atualizarCalculoDesconto();
+            const modal = new bootstrap.Modal(document.getElementById('modalDesconto'));
+            modal.show();
+        }
+
+        function atualizarCalculoDesconto() {
+            const valorBase = parseFloat(document.getElementById('descontoValorBase').value) || 0;
+            const inputPercentual = document.getElementById('descontoPercentualInput');
+            let percentual = parseFloat(inputPercentual.value) || 0;
+
+            if (percentual < 0) percentual = 0;
+            if (percentual > 20) percentual = 20;
+
+            const valorDesconto = valorBase * (percentual / 100.0);
+            const novoTotal = Math.max(0, valorBase - valorDesconto);
+
+            document.getElementById('descontoCalculadoExibicao').innerText = formatarMoeda(valorDesconto);
+            document.getElementById('descontoNovoTotalExibicao').innerText = formatarMoeda(novoTotal);
+        }
+
+        async function confirmarDesconto() {
+            const id = document.getElementById('descontoPedidoId').value;
+            const percentualInput = document.getElementById('descontoPercentualInput');
+            const percentual = parseFloat(percentualInput.value);
+
+            if (isNaN(percentual) || percentual <= 0 || percentual > 20) {
+                alert('O desconto de ser menor que 20%.');
+                return;
+            }
+
+            const btn = document.getElementById('btnConfirmarDesconto');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Aplicando...';
+
+            try {
+                const res = await fetch(`/api/pedidos/${id}/desconto?percentual=${percentual}`, {
+                    method: 'PUT'
+                });
+                if (res.ok) {
+                    alert('Desconto aplicado com sucesso!');
+                    window.location.reload();
+                } else {
+                    const err = await res.text();
+                    let msg = err;
+                    try { const j = JSON.parse(err); if (j.message) msg = j.message; } catch (_) {}
+                    alert('Erro ao aplicar desconto: ' + (msg || 'Operação não autorizada.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Confirmar Desconto';
+                }
+            } catch (e) {
+                alert('Falha na requisição: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Confirmar Desconto';
+            }
+        }
+
+        function abrirModalCancelar(id) {
+            document.getElementById('cancelarPedidoId').value = id;
+            document.getElementById('cancelarPedidoIdExibicao').innerText = id;
+            document.getElementById('cancelarJustificativaInput').value = '';
+
+            const modal = new bootstrap.Modal(document.getElementById('modalCancelarPedido'));
+            modal.show();
+        }
+
+        async function confirmarCancelamento() {
+            const id = document.getElementById('cancelarPedidoId').value;
+            const justificativaInput = document.getElementById('cancelarJustificativaInput');
+            const justificativa = justificativaInput.value.trim();
+
+            if (!justificativa) {
+                alert('A justificativa é obrigatória');
+                justificativaInput.focus();
+                return;
+            }
+
+            const btn = document.getElementById('btnConfirmarCancelamento');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cancelando...';
+
+            try {
+                const res = await fetch(`/api/pedidos/${id}/cancelar?justificativa=${encodeURIComponent(justificativa)}`, {
+                    method: 'PUT'
+                });
+                if (res.ok) {
+                    alert('Pedido cancelado com sucesso!');
+                    window.location.reload();
+                } else {
+                    const err = await res.text();
+                    let msg = err;
+                    try { const j = JSON.parse(err); if (j.message) msg = j.message; } catch (_) {}
+                    alert('Erro ao cancelar pedido: ' + (msg || 'Operação não autorizada.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-x-lg me-1"></i> Confirmar Cancelamento';
+                }
+            } catch (e) {
+                alert('Falha na requisição: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-x-lg me-1"></i> Confirmar Cancelamento';
+            }
+        }
+    </script>
+
+</div>
+
+</body>
+</html>

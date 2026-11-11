@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Dashboard Administrativo - Pediu Patrão</title>
+</head>
+<body>
+
+<div th:fragment="content">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0">Dashboard Administrativo</h3>
+            <small class="text-muted">Desempenho operacional e financeiro de pedidos.</small>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="carregarDashboard()">Atualizar</button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2 px-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <span class="text-secondary small fw-semibold">Período:</span>
+                </div>
+                <div class="col-auto">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="definirPeriodo('hoje')">Hoje</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="definirPeriodo('7dias')">7 Dias</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn30dias" onclick="definirPeriodo('30dias')">30 Dias</button>
+                    </div>
+                </div>
+                <div class="col-auto d-flex align-items-center gap-1">
+                    <input type="date" id="filtroInicio" class="form-control form-control-sm" style="width: 140px;">
+                    <span class="text-muted small">até</span>
+                    <input type="date" id="filtroFim" class="form-control form-control-sm" style="width: 140px;">
+                    <button class="btn btn-primary btn-sm ms-1" onclick="carregarDashboard()">Filtrar</button>
+                </div>
+                <div class="col text-end">
+                    <span id="spinnerLoading" class="spinner-border spinner-border-sm text-secondary d-none"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerta de Validação -->
+    <div id="alertaFiltro" class="alert alert-warning alert-dismissible fade show d-none py-2" role="alert">
+        <span id="mensagemAlertaFiltro" class="small"></span>
+        <button type="button" class="btn-close py-2" onclick="fecharAlerta()"></button>
+    </div>
+
+    <!-- Indicadores Gerais de Vendas (KPIs) -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted text-uppercase">Faturamento Total</small>
+                <h4 class="fw-bold text-success my-1" id="kpiFaturamento">R$ 0,00</h4>
+                <small class="text-muted">Pedidos finalizados</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted text-uppercase">Concluídos</small>
+                <h4 class="fw-bold text-primary my-1" id="kpiFinalizados">0</h4>
+                <small class="text-muted">Entregues</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted text-uppercase">Cancelados</small>
+                <h4 class="fw-bold text-danger my-1" id="kpiCancelados">0</h4>
+                <small class="text-muted">Cancelamentos</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted text-uppercase">Ticket Médio</small>
+                <h4 class="fw-bold text-dark my-1" id="kpiTicketMedio">R$ 0,00</h4>
+                <small class="text-muted">Média por pedido</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos de Vendas e Situação dos Pedidos -->
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-8">
+            <div class="card h-100">
+                <div class="card-header bg-white py-2">
+                    <span class="fw-semibold">Vendas no Período</span>
+                </div>
+                <div class="card-body">
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="graficoVendas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-white py-2">
+                    <span class="fw-semibold">Situação dos Pedidos</span>
+                </div>
+                <div class="card-body">
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="graficoStatus"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-white py-2">
+            <span class="fw-semibold">Top Produtos Mais Vendidos</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width: 90px;">Posição</th>
+                        <th>Produto</th>
+                        <th class="text-end pe-3" style="width: 140px;">Qtd. Vendida</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaRanking">
+                    <tr>
+                        <td colspan="3" class="text-center py-3 text-muted">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let chartVendas = null;
+        let chartStatus = null;
+
+        const formatoMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            definirPeriodo('30dias');
+        });
+
+        function definirPeriodo(tipo) {
+            const hoje = new Date();
+            const formatar = d => d.toISOString().split('T')[0];
+            let inicio;
+
+            if (tipo === 'hoje') {
+                inicio = formatar(hoje);
+            } else if (tipo === '7dias') {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                inicio = formatar(d);
+            } else {
+                const d = new Date();
+                d.setDate(d.getDate() - 30);
+                inicio = formatar(d);
+            }
+
+            document.getElementById('filtroInicio').value = inicio;
+            document.getElementById('filtroFim').value = formatar(hoje);
+            carregarDashboard();
+        }
+
+        function exibirAlerta(msg) {
+            document.getElementById('mensagemAlertaFiltro').innerText = msg;
+            document.getElementById('alertaFiltro').classList.remove('d-none');
+        }
+
+        function fecharAlerta() {
+            document.getElementById('alertaFiltro').classList.add('d-none');
+        }
+
+        async function carregarDashboard() {
+            const inicio = document.getElementById('filtroInicio').value;
+            const fim = document.getElementById('filtroFim').value;
+            const spinner = document.getElementById('spinnerLoading');
+
+            if (inicio && fim) {
+                const dtIni = new Date(inicio + 'T00:00:00');
+                const dtFim = new Date(fim + 'T23:59:59');
+
+                if (dtIni > dtFim) {
+                    exibirAlerta('A data inicial não pode ser posterior à data final.');
+                    return;
+                }
+                const dias = (dtFim - dtIni) / (1000 * 60 * 60 * 24);
+                if (dias > 366) {
+                    exibirAlerta('O período máximo de consulta permitido é de 1 ano (366 dias).');
+                    return;
+                }
+            }
+            fecharAlerta();
+
+            if (spinner) spinner.classList.remove('d-none');
+            const params = (inicio && fim) ? `?inicio=${inicio}&fim=${fim}` : '';
+
+            try {
+                const [resResumo, resVendas, resStatus, resRanking] = await Promise.all([
+                    fetch(`/api/dashboard/resumo${params}`),
+                    fetch(`/api/dashboard/vendas${params}`),
+                    fetch(`/api/dashboard/status${params}`),
+                    fetch(`/api/dashboard/ranking-produtos${params}&limite=5`)
+                ]);
+
+                if (!resResumo.ok || !resVendas.ok || !resStatus.ok || !resRanking.ok) {
+                    exibirAlerta('Falha ao obter dados da API.');
+                    return;
+                }
+
+                const resumo = await resResumo.json();
+                const vendas = await resVendas.json();
+                const statusList = await resStatus.json();
+                const ranking = await resRanking.json();
+
+                document.getElementById('kpiFaturamento').innerText = formatoMoeda.format(resumo.faturamento || 0);
+                document.getElementById('kpiFinalizados').innerText = resumo.pedidosFinalizados || 0;
+                document.getElementById('kpiCancelados').innerText = resumo.pedidosCancelados || 0;
+                document.getElementById('kpiTicketMedio').innerText = formatoMoeda.format(resumo.ticketMedio || 0);
+
+                atualizarGraficoVendas(vendas);
+
+                atualizarGraficoStatus(statusList);
+
+                atualizarTabelaRanking(ranking);
+
+            } catch (err) {
+                console.error(err);
+                exibirAlerta('Erro de conexão ao carregar o dashboard.');
+            } finally {
+                if (spinner) spinner.classList.add('d-none');
+            }
+        }
+
+        function atualizarGraficoVendas(vendas) {
+            const ctx = document.getElementById('graficoVendas').getContext('2d');
+            const labels = vendas.map(v => {
+                const p = v.data.split('-');
+                return p.length === 3 ? `${p[2]}/${p[1]}` : v.data;
+            });
+            const faturamento = vendas.map(v => v.total);
+
+            if (chartVendas) chartVendas.destroy();
+
+            chartVendas = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Faturamento (R$)',
+                        data: faturamento,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            ticks: { callback: v => 'R$ ' + v }
+                        }
+                    }
+                }
+            });
+        }
+
+        function atualizarGraficoStatus(statusList) {
+            const ctx = document.getElementById('graficoStatus').getContext('2d');
+            const validos = statusList.filter(s => s.quantidade > 0);
+
+            if (chartStatus) chartStatus.destroy();
+
+            chartStatus = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: validos.map(s => s.status),
+                    datasets: [{
+                        data: validos.map(s => s.quantidade),
+                        backgroundColor: ['#198754', '#dc3545', '#ffc107', '#0dcaf0', '#6f42c1', '#6c757d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function atualizarTabelaRanking(ranking) {
+            const tbody = document.getElementById('tabelaRanking');
+            tbody.innerHTML = '';
+
+            if (!ranking || ranking.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-3 text-muted">Nenhum produto vendido no período.</td></tr>';
+                return;
+            }
+
+            ranking.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-3 fw-bold">${index + 1}º</td>
+                    <td>${item.produtoNome}</td>
+                    <td class="text-end pe-3">${item.quantidadeVendida} un</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</div>
+
+</body>
+</html>

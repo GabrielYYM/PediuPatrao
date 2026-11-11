@@ -214,6 +214,13 @@ public class HomeController {
         return "admin";
     }
 
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("content", "dashboard :: content");
+        log.info("Carregando fragmento: dashboard :: content");
+        return "layout";
+    }
+
     @GetMapping("/auditoria")
     public String auditoria(Model model) {
         model.addAttribute("auditorias", auditoriaService.listarTodas());

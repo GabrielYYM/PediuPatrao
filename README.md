@@ -1,8 +1,6 @@
 # PediuPatrão — Sistema de Gestão de Pedidos e Restaurante
 
-> **Documento de Entrega da Atividade:** Acesse a [Documentação Técnica do Dashboard Administrativo](DOCUMENTACAO_DASHBOARD.md) contendo os requisitos, documentação detalhada dos endpoints com exemplos de JSON, evidências dos 13 testes realizados.
->
-> 🎥 **Vídeo de Apresentação (Demonstração da Solução):** [Assistir no Google Drive](https://drive.google.com/file/d/17of1apuNTNT6wXU5hLLVZ_TnHRFGBGxQ/view?usp=sharing)
+**Vídeo de Apresentação (Demonstração da Solução):** [Assistir no Google Drive](https://drive.google.com/file/d/17of1apuNTNT6wXU5hLLVZ_TnHRFGBGxQ/view?usp=sharing)
 
 Sistema web para gerenciamento operacional de pizzarias e restaurantes, construído com **Spring Boot 3**, **MongoDB** e **Spring Security**. O sistema conta com controle de acesso baseado em papéis (RBAC), máquina de estados para ciclo de vida de pedidos, cálculo de preços e descontos no servidor e auditoria granular persistente.
 

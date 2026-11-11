@@ -26,6 +26,17 @@
                     </li>
                     <li class="nav-item">
                         <a th:if="${#authorization.expression('hasAnyRole(''ADMIN'', ''GERENTE'')')}"
+                           class="nav-link" th:href="@{/dashboard}">
+                            <i class="bi bi-graph-up-arrow"></i><span class="d-none d-md-inline">&nbsp;Dashboard</span>
+                        </a>
+                        <a th:unless="${#authorization.expression('hasAnyRole(''ADMIN'', ''GERENTE'')')}"
+                           class="nav-link text-muted" href="javascript:void(0)" tabindex="-1" aria-disabled="true"
+                           style="opacity: 0.45; cursor: not-allowed;" title="Apenas Gerente e Administrador têm acesso ao Dashboard">
+                            <i class="bi bi-graph-up-arrow"></i><span class="d-none d-md-inline">&nbsp;Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:if="${#authorization.expression('hasAnyRole(''ADMIN'', ''GERENTE'')')}"
                            class="nav-link" th:href="@{/auditoria}">
                             <i class="bi bi-journal-text"></i><span class="d-none d-md-inline">&nbsp;Auditoria</span>
                         </a>

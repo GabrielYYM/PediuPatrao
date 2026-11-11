@@ -9,13 +9,16 @@ import com.umc.pediupatrao.entity.Pedido;
 import com.umc.pediupatrao.entity.enums.StatusPedido;
 import com.umc.pediupatrao.repository.PedidoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -118,6 +121,14 @@ public class DashboardService {
     private List<Pedido> buscarPedidosPorPeriodo(LocalDate inicio, LocalDate fim) {
         LocalDate dataIni = inicio != null ? inicio : LocalDate.now().minusDays(30);
         LocalDate dataFim = fim != null ? fim : LocalDate.now();
+
+        if (dataIni.isAfter(dataFim)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A data inicial não pode ser posterior à data final.");
+        }
+
+        if (ChronoUnit.DAYS.between(dataIni, dataFim) > 366) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O período da consulta não pode exceder 1 ano (366 dias).");
+        }
 
         LocalDateTime inicioDateTime = dataIni.atStartOfDay();
         LocalDateTime fimDateTime = dataFim.atTime(23, 59, 59, 999999999);

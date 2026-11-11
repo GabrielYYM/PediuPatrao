@@ -81,3 +81,6 @@ build/
 
 ### Data ###
 *.sql
+
+src/main/resources/static/plugins/
+

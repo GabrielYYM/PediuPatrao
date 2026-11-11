@@ -156,5 +156,35 @@ class DashboardServiceTest {
         assertEquals("Pizza Calabresa", ranking.get(1).produtoNome());
         assertEquals(2, ranking.get(1).quantidadeVendida());
     }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException se o intervalo de datas exceder 1 ano")
+    void testRejeitarPeriodoMaiorQueUmAno() {
+        LocalDate inicio = LocalDate.now().minusDays(400);
+        LocalDate fim = LocalDate.now();
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> dashboardService.obterResumo(inicio, fim)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("1 ano"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException se data inicial for posterior à data final")
+    void testRejeitarDataInicialMaiorQueFinal() {
+        LocalDate inicio = LocalDate.now();
+        LocalDate fim = LocalDate.now().minusDays(5);
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> dashboardService.obterResumo(inicio, fim)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("posterior"));
+    }
 }
 
